@@ -1,8 +1,10 @@
+#provider and profile details
 provider "aws" {
 region = "ap-south-1"
 profile = "avanishgupta"
 }
-
+ 
+#creating key
 resource "tls_private_key" "example" {
   algorithm = "RSA"
   rsa_bits  = 4096
@@ -18,7 +20,7 @@ filename="C:/Users/91893/Downloads/mykey2301.pem"
 file_permission=0400
 }
 
-
+#creating security group
 resource "aws_security_group" "allow_tlsp" {
   name        = "allow_tlsp"
   description = "Allow TLS inbound traffic"
@@ -40,9 +42,7 @@ resource "aws_security_group" "allow_tlsp" {
   }
 }
 
-
-
-
+#creating aws instance
 resource "aws_instance" "LinuxOS" {
   ami   ="ami-0447a12f28fddb066"
   instance_type = "t2.micro"
@@ -66,9 +66,7 @@ connection {
   }
 }
 
-
-
-
+#creating ebs volume
 
 resource "aws_ebs_volume" "persistent_storage" {
   availability_zone = aws_instance.LinuxOS.availability_zone
@@ -78,6 +76,7 @@ resource "aws_ebs_volume" "persistent_storage" {
   }
 }
 
+#attching volume to the instance
 resource "aws_volume_attachment" "ebs_att" {
   device_name = "/dev/sdh"
   volume_id   = aws_ebs_volume.persistent_storage.id
@@ -85,12 +84,7 @@ resource "aws_volume_attachment" "ebs_att" {
  
 }
 
-
-
-
-
-
-
+# mounting ebs volume to the instance and linking it to /var/www/html
 resource "null_resource" "nullremote3"  {
 depends_on = [
     aws_volume_attachment.ebs_att,
@@ -114,6 +108,7 @@ provisioner "remote-exec" {
   }
 }
 
+#creating s3 bucket
 resource "aws_s3_bucket" "b" {
  
   acl    = "private"
@@ -123,12 +118,15 @@ resource "aws_s3_bucket" "b" {
 
   }
 }
+
 resource "aws_s3_bucket_public_access_block" "publicobject" {
   bucket = "${aws_s3_bucket.b.id}"
 
   block_public_acls   = false
   block_public_policy = false
 }
+
+#uploading files to the s3 bucket
 resource "aws_s3_bucket_object" "object" {
   bucket = "${aws_s3_bucket.b.id}"
   key    = "justice_league.jpg"
@@ -137,10 +135,7 @@ resource "aws_s3_bucket_object" "object" {
   content_type = "image/jpg"
 }
 
-
-
-
-
+#creating origin access identity
 resource "aws_cloudfront_origin_access_identity" "origin_access_identity" {
   comment = "Some comment"
 }
@@ -174,6 +169,7 @@ locals {
   s3_origin_id = "myS3Origin"
 }
 
+# creating cloudfront distribution
 resource "aws_cloudfront_distribution" "s3_distribution" {
   origin {
     domain_name = "${aws_s3_bucket.b.bucket_regional_domain_name}"
@@ -278,8 +274,7 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
   }
 }
 
-
-
+#copying cloudfront url to a file and opening the url inside chrome
 resource "null_resource" "nulllocal1"  {
 depends_on = [
     aws_cloudfront_distribution.s3_distribution,
