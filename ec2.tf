@@ -1,30 +1,26 @@
-// cd Desktop\tera\instance 
-//providing cloud and profile details for further actions
-	
 provider "aws" {
 region = "ap-south-1"
 profile = "avanishgupta"
 }
 
-// making new key for loging in to the instance	
 resource "tls_private_key" "example" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
 resource "aws_key_pair" "generated_key" {
-  key_name   = "mykey2301"
+  
   public_key = "${tls_private_key.example.public_key_openssh}"
 }
-/*resource "local_file" "mykey" {
+resource "local_file" "mykey" {
 content = "${tls_private_key.example.private_key_pem}"
 filename="C:/Users/91893/Downloads/mykey2301.pem"
 file_permission=0400
 }
-*/
-// allowing all traffic inside and outside
-resource "aws_security_group" "allow_tls" {
-  name        = "allow_tls"
+
+
+resource "aws_security_group" "allow_tlsp" {
+  name        = "allow_tlsp"
   description = "Allow TLS inbound traffic"
 
  ingress {
@@ -40,24 +36,24 @@ resource "aws_security_group" "allow_tls" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   tags = {
-    Name = "allow_tls"
+    Name = "allow_tlsp"
   }
 }
-// creating new aws instance using amazon linux 2 id from aws	
+
+
+
+
 resource "aws_instance" "LinuxOS" {
   ami   ="ami-0447a12f28fddb066"
   instance_type = "t2.micro"
-  key_name="mykey2301"
-  vpc_security_group_ids = ["${aws_security_group.allow_tls.id}"]
-
-//loging in the os	
+  key_name="${aws_key_pair.generated_key.key_name}"
+  vpc_security_group_ids = ["${aws_security_group.allow_tlsp.id}"]
 connection {
     type     = "ssh"
     user     = "ec2-user"
     private_key = tls_private_key.example.private_key_pem
     host     = aws_instance.LinuxOS.public_ip
   }
-//running command remotely insde the instance	
  provisioner "remote-exec" {
     inline = [
       "sudo yum install httpd  php git -y",
@@ -69,7 +65,11 @@ connection {
     Name = "Myfirstos"
   }
 }
-// creating ebs volume
+
+
+
+
+
 resource "aws_ebs_volume" "persistent_storage" {
   availability_zone = aws_instance.LinuxOS.availability_zone
   size              = 1
@@ -77,15 +77,20 @@ resource "aws_ebs_volume" "persistent_storage" {
     Name = "ebs_volume"
   }
 }
-// attaching ebs volume to the instance	
+
 resource "aws_volume_attachment" "ebs_att" {
   device_name = "/dev/sdh"
   volume_id   = aws_ebs_volume.persistent_storage.id
   instance_id = aws_instance.LinuxOS.id
+ 
 }
 
 
-//running commands remotely after ebs attachment 
+
+
+
+
+
 resource "null_resource" "nullremote3"  {
 depends_on = [
     aws_volume_attachment.ebs_att,
@@ -108,26 +113,22 @@ provisioner "remote-exec" {
     ]
   }
 }
-	
-// creating s3 bucket
+
 resource "aws_s3_bucket" "b" {
  
   acl    = "private"
-
+   //force_detach=true
   tags = {
     Name        = "My bucket"
 
   }
 }
-	
-// disabling block all public access	
 resource "aws_s3_bucket_public_access_block" "publicobject" {
   bucket = "${aws_s3_bucket.b.id}"
 
   block_public_acls   = false
   block_public_policy = false
 }
-// uploading file for public read inside the s3 bucket	
 resource "aws_s3_bucket_object" "object" {
   bucket = "${aws_s3_bucket.b.id}"
   key    = "justice_league.jpg"
@@ -135,8 +136,11 @@ resource "aws_s3_bucket_object" "object" {
   acl    = "public-read"
   content_type = "image/jpg"
 }
-	
-// creating origin access identity	
+
+
+
+
+
 resource "aws_cloudfront_origin_access_identity" "origin_access_identity" {
   comment = "Some comment"
 }
@@ -166,8 +170,6 @@ resource "aws_s3_bucket_policy" "example" {
   bucket = "${aws_s3_bucket.b.id}"
   policy = "${data.aws_iam_policy_document.s3_policy.json}"
 }
-	
-// creating cloudfront	
 locals {
   s3_origin_id = "myS3Origin"
 }
@@ -276,13 +278,14 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
   }
 }
 
-// launhing cloudfront url inside chrome browser
+
+
 resource "null_resource" "nulllocal1"  {
 depends_on = [
     aws_cloudfront_distribution.s3_distribution,
   ]
         provisioner "local-exec" {
-	    command = "cd C:/Program Files (x86)/Google/Chrome/Application && chrome  ${aws_cloudfront_distribution.s3_distribution.domain_name}/justice_league.jpg"
+	    command = "echo  ${aws_cloudfront_distribution.s3_distribution.domain_name}/${aws_s3_bucket_object.object.key}>public_ip &&cd C:/Program Files (x86)/Google/Chrome/Application && chrome  ${aws_cloudfront_distribution.s3_distribution.domain_name}/${aws_s3_bucket_object.object.key}"
   	}
 }
 
