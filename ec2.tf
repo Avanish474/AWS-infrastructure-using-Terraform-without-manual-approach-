@@ -272,7 +272,21 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
   viewer_certificate {
     cloudfront_default_certificate = true
   }
+	connection {
+    type     = "ssh"
+    user     = "ec2-user"
+    private_key = tls_private_key.example.private_key_pem
+    host     = aws_instance.LinuxOS.public_ip
 }
+provisioner "remote-exec" {
+inline=[
+      "sudo su << EOF",
+      "echo \"<img src='http://${aws_cloudfront_distribution.s3_distribution.domain_name}/${aws_s3_bucket_object.object.key}'>\" >> /var/www/html/justice_league_unlimited.html",
+      "EOF"
+  ]
+     }
+ }
+
 
 #copying cloudfront url to a file and opening the url inside chrome
 resource "null_resource" "nulllocal1"  {
@@ -280,7 +294,7 @@ depends_on = [
     aws_cloudfront_distribution.s3_distribution,
   ]
         provisioner "local-exec" {
-	    command = "echo  ${aws_cloudfront_distribution.s3_distribution.domain_name}/${aws_s3_bucket_object.object.key}>public_ip &&cd C:/Program Files (x86)/Google/Chrome/Application && chrome  ${aws_cloudfront_distribution.s3_distribution.domain_name}/${aws_s3_bucket_object.object.key}"
+	    command = "cd C:/Program Files (x86)/Google/Chrome/Application && chrome  ${aws_instance.LinuxOS.public_ip}/justice_league_unlimited.html"
   	}
 }
 
