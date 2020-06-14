@@ -281,7 +281,7 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
 provisioner "remote-exec" {
 inline=[
       "sudo su << EOF",
-      "echo \"<img src='http://${aws_cloudfront_distribution.s3_distribution.domain_name}/${aws_s3_bucket_object.object.key}'>\" >> /var/www/html/justice_league_unlimited.html",
+      "echo \"<img src='http://${aws_cloudfront_distribution.s3_distribution.domain_name}/${aws_s3_bucket_object.object.key}'>\" > /var/www/html/justice_league.html",
       "EOF"
   ]
      }
@@ -294,7 +294,7 @@ depends_on = [
     aws_cloudfront_distribution.s3_distribution,
   ]
         provisioner "local-exec" {
-	    command = "cd C:/Program Files (x86)/Google/Chrome/Application && chrome  ${aws_instance.LinuxOS.public_ip}/justice_league_unlimited.html"
+	    command = "cd C:/Program Files (x86)/Google/Chrome/Application && chrome  ${aws_instance.LinuxOS.public_ip}/justice_league.html"
   	}
 }
 
